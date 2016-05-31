@@ -229,7 +229,7 @@ class Net(object):
         return error
     
     
-    def train_many(self, input, target, lr, epochs, goal):
+    def train_many(self, input, target, lr, epochs, goal, verbose=False):
         """
         Train on the same data set multiple times, 
         Stop as soon as target accuracy or max epochs are reached.
@@ -245,6 +245,8 @@ class Net(object):
                 Maximum number of training iterations
             goal: float
                 Target accuracy.
+            verbose: boolean
+                If true, print error at each epoch
             
         :Returns:
             A list of the error at each epoch
@@ -253,6 +255,8 @@ class Net(object):
         
         for i in range(epochs):
             nextError = self.train_1(input, target, lr)
+            if verbose:
+                print "{}: {}".format(i+1, nextError)
             error.append(nextError)
             if nextError < goal:
                 break
@@ -276,7 +280,7 @@ def main():
     
     # Train for 100 epochs
     error = net.train_many(input, target, 0.4, 100, 0.01)
-    print "\n".join(map(str, error))
+    #print "\n".join(map(str, error))
 
     # Check that we've learned everything
     print net.sim([0, 0])       # 0

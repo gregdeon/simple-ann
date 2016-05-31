@@ -45,7 +45,7 @@ def main():
     
     # Make network
     net = Net(limits, 2, 2)
-    errorList = net.train_many(input, signal, 0.1, 100, 0.001)
+    errorList = net.train_many(input, signal, 0.1, 100, 0.001, True)
     print "\n".join(map(str, errorList))
         
     """ Step 3: check results """
