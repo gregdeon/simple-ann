@@ -30,8 +30,8 @@ def main():
         y_list[i] = y_sum
     
     # Add noise
-    #noise = np.random.random([y_num, len(y_base)]) / 5
-    #y_list += noise
+    noise = np.random.random([y_num, len(y_base)]) / 10
+    y_list += noise
     
     """ Step 2: train neural network """
     # Set up input and signals
@@ -45,13 +45,8 @@ def main():
     
     # Make network
     net = Net(limits, 2, 2)
-    errorList = []
-    for i in range(100):
-        error = net.train_1(input, signal, 0.1)
-        errorList.append(error)
-        print "Error: " + str(error)
-        if error < 0.001:
-            break
+    errorList = net.train_many(input, signal, 0.1, 100, 0.001)
+    print "\n".join(map(str, errorList))
         
     """ Step 3: check results """
     # Print results by hand

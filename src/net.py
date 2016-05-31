@@ -2,8 +2,6 @@
 # A dead-simple neural network
 #
 # Potential improvements:
-# - Refactor to avoid duplicate code in sim() and train_1()
-# - Add train_many()
 # - Support topologies other than 1 hidden layer
 # - Add other training strategies (adaptive learning rate, momentum)
 # - Add more error checking
@@ -229,8 +227,37 @@ class Net(object):
             error += np.sum((o[2] - np.reshape(target[i], [-1, 1]))**2)            
 
         return error
+    
+    
+    def train_many(self, input, target, lr, epochs, goal):
+        """
+        Train on the same data set multiple times, 
+        Stop as soon as target accuracy or max epochs are reached.
+        
+        :Inputs:
+            input: 2D array
+                A <tests>x<size_inp> array. The input for test i is input[i, :]
+            target: 2D array
+                A <tests>x<size_out> array. The target for test i is target[i, :]
+            lr: float
+                Learning rate - preferably in the range (0, 1)
+            epochs: int
+                Maximum number of training iterations
+            goal: float
+                Target accuracy.
             
-
+        :Returns:
+            A list of the error at each epoch
+        """
+        error = []
+        
+        for i in range(epochs):
+            nextError = self.train_1(input, target, lr)
+            error.append(nextError)
+            if nextError < goal:
+                break
+        return error
+        
 def main():
     """
     Test code: learn XOR with 3 hidden nodes
@@ -244,12 +271,12 @@ def main():
     target = np.array([[0],    [1],    [1],    [0]   ]*20)
     
     # Print it to check
-    print input
-    print target
+    #print input
+    #print target
     
     # Train for 100 epochs
-    for i in range(100):
-        print net.train_1(input, target, 0.4)
+    error = net.train_many(input, target, 0.4, 100, 0.01)
+    print "\n".join(map(str, error))
 
     # Check that we've learned everything
     print net.sim([0, 0])       # 0
