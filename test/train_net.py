@@ -44,7 +44,7 @@ def main():
     #limits = [[-20, 20]]*10
     
     # Make network
-    net = Net(limits, [2, 2])
+    net = Net(limits, 2, 2)
     errorList = []
     for i in range(100):
         error = net.train_1(input, signal, 0.1)
