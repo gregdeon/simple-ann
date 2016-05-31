@@ -90,7 +90,7 @@ class Net(object):
         :Inputs:
             input: 1D list of length size_inp
         
-        :Outputs:
+        :Returns:
             1D list of same length, with all values scaled (as described)
         """
         for i in range(len(input)):
@@ -98,6 +98,67 @@ class Net(object):
             hi  = self.inp_range[i][1]
             input[i] = -1.0 + 2.0 * (input[i] - low) / (hi - low)
         return input
+        
+    def _forwardProp(self, input):
+        """
+        Perform forward propagation, saving the values at each layer
+        
+        :Inputs:
+            input: a (size_inp x 1) array
+            
+        :Returns:
+            A list of 3 1D arrays of length (size_inp, size_hid, size_out)
+            Calculated values at each node in all 3 layers
+        """
+        # Save intermediate results
+        o = []
+        
+        # Input
+        layer = np.array(input, copy=True)
+        layer = np.reshape(layer, [-1, 1])
+        layer = self._scaleInput(layer)
+        layer = self._addBias(layer)
+        o.append(layer)
+        
+        # Hidden
+        layer = self._activate(np.dot(self.w_in, layer))
+        layer = self._addBias(layer)
+        o.append(layer)
+        
+        # Output
+        layer = np.dot(self.w_out, layer)
+        o.append(layer)
+        
+        return o
+        
+        
+    def _backProp(self, o, target):
+        """
+        Perform backward propagation, calculating deltas at each node
+        
+        :Inputs:
+            o: list of 3 arrays (1 x size_inp, 1 x size_hid, 1 x size_out)
+                Output values at each node
+            target: (1 x size_out) array of 
+                Expected values at output layer
+            
+        :Returns:
+            List of 2 arrays (1 x size_hid, 1 x size_out)
+            Delta_j values at each node in hidden and output layers 
+        """
+        delta = [[] for _ in range(2)]
+        delta[0] = np.zeros([self.size_hid, 1])
+        
+        # Output delta
+        delta[1] = o[2] - np.reshape(target, [-1, 1])
+        
+        # Hidden delta
+        for j in range(self.size_hid):
+            for k in range(self.size_out):
+                delta[0][j] += delta[1][k] * self.w_out[k][j]
+            delta[0][j] *= o[1][j] * (1 - o[1][j])
+        
+        return delta
         
     def sim(self, input):
         """
@@ -116,18 +177,9 @@ class Net(object):
         except:
             raise ValueError("Expected input of size {}; got {}".format(size, self.size_inp))
         
-        # Get input
-        layer = np.reshape(np.array(input), [-1, 1])
-        layer = self._scaleInput(layer)
-        layer = self._addBias(layer)
-        
-        # Get hidden layer
-        layer = self._activate(np.dot(self.w_in, layer))
-        layer = self._addBias(layer)
-        
-        # Get output
-        layer = np.dot(self.w_out, layer)
-        return layer
+        # We only need to do forward propagation 
+        input = np.reshape(np.array(input), [-1, 1])
+        return self._forwardProp(input)[2]
         
     def train_1(self, input, target, lr):
         """
@@ -142,57 +194,39 @@ class Net(object):
                 A <tests>x<size_out> array. The target for test i is target[i, :]
             lr: float
                 Learning rate - preferably in the range (0, 1)
+                
+        :Returns:
+            The error (SSE) accumulated over all of the inputs
         """
+        # Make sure the input is the right size
+        try:
+            size = np.shape(input)[1]
+            assert size == self.size_inp
+        except:
+            raise ValueError("Expected input of size {}; got {}".format(size, self.size_inp))
+            
         # Keep track of total error in tests
         error = 0
         
         # Optional: reorder test cases randomly (does this help?)
         order = range(len(input))
-        #np.random.shuffle(order)
+        np.random.shuffle(order)
         
         for i in order:
             # Forward propagation
-            # Save intermediate results
-            o = []
-            
-            # Input
-            layer = np.array(input[i], copy=True)
-            layer = np.reshape(layer, [-1, 1])
-            layer = self._scaleInput(layer)
-            layer = self._addBias(layer)
-            o.append(layer)
-
-            
-            # Hidden
-            layer = self._activate(np.dot(self.w_in, layer))
-            layer = self._addBias(layer)
-            o.append(layer)
-            
-            # Output
-            layer = np.dot(self.w_out, layer)
-            o.append(layer)
-            output = layer
+            o = self._forwardProp(input[i])
             
             # Backward propagation
-            delta = [[] for _ in range(2)]
-            delta[0] = np.zeros([self.size_hid, 1])
+            delta = self._backProp(o, target[i, :])
             
-            # Output delta
-            delta[1] = output - np.reshape(target[i], [-1, 1])
-            
-            # Hidden delta
-            for j in range(self.size_hid):
-                for k in range(self.size_out):
-                    delta[0][j] += delta[1][k] * self.w_out[k][j]
-                delta[0][j] *= o[1][j] * (1 - o[1][j])
-            
-            # Changes in weights
+            # Update weights
             delta_w_out = -lr * np.dot(delta[1], np.reshape(o[1], [1, -1]))
             delta_w_in  = -lr * np.dot(delta[0], np.reshape(o[0], [1, -1]))
             self.w_out += delta_w_out
-            self.w_in += delta_w_in           
-            # SSE calculation
-            error += np.sum((output - np.reshape(target[i], [-1, 1]))**2)            
+            self.w_in += delta_w_in      
+            
+            # Add this error to running total
+            error += np.sum((o[2] - np.reshape(target[i], [-1, 1]))**2)            
 
         return error
             
@@ -206,8 +240,8 @@ def main():
     net = Net([[0, 1], [0, 1]], 3, 1)
     
     # Set up dataset
-    input  = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-    target = np.array([[0],    [1],    [1],    [0]   ])
+    input  = np.array([[0, 0], [0, 1], [1, 0], [1, 1]]*20)
+    target = np.array([[0],    [1],    [1],    [0]   ]*20)
     
     # Print it to check
     print input
@@ -215,7 +249,7 @@ def main():
     
     # Train for 100 epochs
     for i in range(100):
-        print net.train_1(input, target, 0.5)
+        print net.train_1(input, target, 0.4)
 
     # Check that we've learned everything
     print net.sim([0, 0])       # 0
