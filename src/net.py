@@ -50,12 +50,16 @@ class Net(object):
             assert np.shape(inp_range)[1] == 2
         except:
             raise ValueError("Invalid shape for inp_range - need [min, max] for each node")
-        self.inp_range  = inp_range
-        
         # Size of each layer
         self.size_inp = np.shape(inp_range)[0]
         self.size_hid = hidden_count
         self.size_out = output_count
+
+        # Input ranges
+        self.inp_range  = np.array(inp_range)
+        self.inp_min = np.reshape(self.inp_range[:, 0], [self.size_inp, -1])
+        self.inp_max = np.reshape(self.inp_range[:, 1], [self.size_inp, -1])
+        self.inp_span = self.inp_max - self.inp_min
         
         # Random connections
         self.w_in  = np.random.random([self.size_hid, self.size_inp+1])-0.5
@@ -91,10 +95,8 @@ class Net(object):
         :Returns:
             1D list of same length, with all values scaled (as described)
         """
-        for i in range(len(input)):
-            low = self.inp_range[i][0]
-            hi  = self.inp_range[i][1]
-            input[i] = -1.0 + 2.0 * (input[i] - low) / (hi - low)
+        input -= self.inp_min
+        input /= self.inp_span
         return input
         
     def _forwardProp(self, input):
